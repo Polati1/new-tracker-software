@@ -44,7 +44,7 @@ LOCAL_OBJS = $(LOCAL_SRCS:.c=.o)
 #build flags
 CFLAGS = -mcpu=cortex-m4 \
          -mthumb \
-         -nostdlib \
+		 -nostdlib \
 		 -Os \
          -g3 \
          -Wall \
@@ -70,7 +70,7 @@ PROGRAMMER_FLAGS = -f interface/stlink.cfg -f target/stm32g4x.cfg
 all: $(BINARY_NAME).elf
 
 $(BINARY_NAME).elf: $(LOCAL_OBJS) $(SYSTEM_FILE_NAME).o
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ -o $(BINARY_NAME).elf
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ -lgcc -o $(BINARY_NAME).elf
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@

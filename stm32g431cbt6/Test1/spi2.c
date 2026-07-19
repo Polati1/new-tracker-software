@@ -77,3 +77,45 @@ uint16_t peripheral_spi2_transfer(uint16_t tx_data)
 
 }
 
+void peripheral_spi2_burst_read(uint8_t start_reg, uint8_t *buffer, uint16_t length)
+{
+    uint16_t rx;
+
+    // Enable SPI (NSS goes low)
+    SPI2->CR1 |= SPI_CR1_SPE;
+
+    // Send register address with read bit set.
+    // Upper byte = command, lower byte = dummy.
+    SPI2->DR = ((0x80 | start_reg) << 8);
+
+    while ((SPI2->SR & SPI_SR_BSY) || !(SPI2->SR & SPI_SR_RXNE));
+    rx = SPI2->DR;        // discard first received word
+
+    while (length >= 2)
+    {
+        SPI2->DR = 0x0000;
+
+        while ((SPI2->SR & SPI_SR_BSY) || !(SPI2->SR & SPI_SR_RXNE));
+
+        rx = SPI2->DR;
+
+        *buffer++ = rx >> 8;
+        *buffer++ = rx & 0xFF;
+
+        length -= 2;
+    }
+
+    if (length)
+    {
+        SPI2->DR = 0x0000;
+
+        while ((SPI2->SR & SPI_SR_BSY) || !(SPI2->SR & SPI_SR_RXNE));
+
+        rx = SPI2->DR;
+
+        *buffer = rx >> 8;
+    }
+
+    // Disable SPI (NSS goes high)
+    SPI2->CR1 &= ~SPI_CR1_SPE;
+}

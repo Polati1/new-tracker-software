@@ -5,5 +5,6 @@
 
 uint8_t sensor_icm40609d_read_reg(uint8_t regAddress);
 void sensor_icm40609d_write_reg(uint8_t regAddress, uint8_t data);
+void sensor_icm40609d_startup(void);
 
 #endif
