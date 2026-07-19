@@ -22,10 +22,6 @@ MCU_DEF = STM32G431xx
 LINKER_NAME = linker
 #.elf name
 BINARY_NAME = blink
-#.c name
-PROGRAM_NAME = main
-#startup code .c name
-STARTUP_NAME = startup
 #system init file name, depends on family
 SYSTEM_FILE_NAME = system_stm32g4xx
 
@@ -36,6 +32,12 @@ SYSTEM_FILE_NAME = system_stm32g4xx
 CMSIS_CORE = ./vendor/CMSIS_5/CMSIS/Core/Include
 CMSIS_ST = ./vendor/CMSIS_5/Device/ST/$(MCU_FAMILY)/Include
 CMSIS_SRC = ./vendor/CMSIS_5/Device/ST/$(MCU_FAMILY)/Source/Templates
+
+#---Auto-Discovery of Local Files---
+# Find all .c files in the current working directory
+LOCAL_SRCS = $(wildcard *.c)
+# Convert those .c file names into .o object file paths
+LOCAL_OBJS = $(LOCAL_SRCS:.c=.o)
 
 #---Build Flags---
 
@@ -67,13 +69,10 @@ PROGRAMMER_FLAGS = -f interface/stlink.cfg -f target/stm32g4x.cfg
 #Process of creating binary file
 all: $(BINARY_NAME).elf
 
-$(BINARY_NAME).elf: $(PROGRAM_NAME).o $(STARTUP_NAME).o $(SYSTEM_FILE_NAME).o
+$(BINARY_NAME).elf: $(LOCAL_OBJS) $(SYSTEM_FILE_NAME).o
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ -o $(BINARY_NAME).elf
 
-$(PROGRAM_NAME).o: $(PROGRAM_NAME).c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
-
-$(STARTUP_NAME).o: $(STARTUP_NAME).c
+%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 $(SYSTEM_FILE_NAME).o: $(CMSIS_SRC)/$(SYSTEM_FILE_NAME).c
