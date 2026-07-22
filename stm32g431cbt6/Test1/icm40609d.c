@@ -74,7 +74,8 @@ uint8_t sensor_icm40609d_read_reg_interrupt(uint8_t regAddress)
     peripheral_spi2_multi_byte_start(tx_buffer, rx_buffer, 2);
     
     while(!peripheral_spi2_multi_byte_get_finished());
-    
+    peripheral_spi2_multi_byte_set_finished(0);
+ 
     return rx_buffer[1];
 
 }
@@ -82,26 +83,26 @@ uint8_t sensor_icm40609d_read_reg_interrupt(uint8_t regAddress)
 void sensor_icm40609d_write_reg_interrupt(uint8_t regAddress, uint8_t data)
 {
 
-    uint8_t tx_buffer[2] = {(0x80 | regAddress), data};
+    uint8_t tx_buffer[2] = {regAddress, data};
     uint8_t rx_buffer[2] = {0};
 
     peripheral_spi2_multi_byte_start(tx_buffer, rx_buffer, 2);
 
     while(!peripheral_spi2_multi_byte_get_finished());
+    peripheral_spi2_multi_byte_set_finished(0);
 
     return;
 
 }
 
-void sensor_icm40609d_burst_transfer_interrupt(uint8_t start_reg, uint8_t* rx_buffer, uint8_t length) 
+void sensor_icm40609d_burst_transfer_interrupt(uint8_t start_reg, uint8_t* tx_buffer, uint8_t* rx_buffer, uint8_t length) 
 {
 
-    uint8_t tx_buffer[length] = {0};
     tx_buffer[0] = (0x80 | start_reg);
     for (uint8_t i = 1; i < length; i++) {
         tx_buffer[i] = 0;
     }
-
+ 
     peripheral_spi2_multi_byte_start(tx_buffer, rx_buffer, length);
 
 }
@@ -133,3 +134,31 @@ void sensor_icm40609d_startup(void)
     delay_ms(50);
 
 }
+
+void sensor_icm40609d_startup_interrupt(void)
+{
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_DEVICE_CONFIG, 0b00000001); //Software reset registers
+    delay_ms(10); //delay of 1ms to stabilize
+
+    uint8_t whoami = sensor_icm40609d_read_reg_interrupt(ICM40609D_WHOAMI_REG);
+    while (whoami != 0x3B); //stop here if whoami is not valid
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_INT_CONFIG, 0b00010010); //pulsed mode, push pull, active low INT1 and INT2 interrupts
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_INT_SOURCE0, 0b00001000); //route UI data ready to INT1 pin
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_INT_CONFIG1, 0b01100000); //interrupt pulse 8us, disable de-assert, interrupt executes synchronously.
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_GYRO_ACCEL_CONFIG0, 0b11101110); //only decimation filter, no LPF
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_ACCEL_CONFIG0, 0b01100001); //+-4g full scale range, 32kHz ODR
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_GYRO_CONFIG0, 0b01100001); //+-250dps full scale range, 32kHz ODR
+
+    sensor_icm40609d_write_reg_interrupt(ICM40609D_PWR_MGMT0, 0b00001111); //temp enabled, rc oscillator follows gyro/accel, accel/gyro enabled
+
+    delay_ms(50);
+
+}
+

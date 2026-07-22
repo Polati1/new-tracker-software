@@ -89,23 +89,31 @@ static uint8_t* volatile rx_buf = 0;
 void peripheral_spi2_init_interrupt(void)
 {
 
+    //initialize spi2 clock
+    RCC->APB1ENR1 |= RCC_APB1ENR1_SPI2EN;
+    
+    NVIC_ClearPendingIRQ(SPI2_IRQn); //clear nvic pending irqn to be safe
+    NVIC_SetPriority(SPI2_IRQn, 3); //set priority to 2
     NVIC_EnableIRQ(SPI2_IRQn); //enable SPI2 interrupt in NVIC
 
     //configure mosi to AF
     GPIOB->MODER &= ~(0x03 << (SPI2_MOSI*2)); //clear bits
     GPIOB->MODER |= (0x02 << (SPI2_MOSI*2)); //10 gives AF mode
+    GPIOB->OSPEEDR |= (0x03 << (SPI2_MOSI*2)); //high speed
     GPIOB->AFR[1] &= ~(0x0F << ((SPI2_MOSI - 8)*4)); //clear bits in high reg
     GPIOB->AFR[1] |= (0x05 << ((SPI2_MOSI - 8)*4)); //AF5 for SPI
 
     //configure miso to AF
     GPIOB->MODER &= ~(0x03 << (SPI2_MISO*2)); //clear bits
     GPIOB->MODER |= (0x02 << (SPI2_MISO*2)); //10 gives AF mode
+    GPIOB->OSPEEDR |= (0x03 << (SPI2_MISO*2)); //high speed
     GPIOB->AFR[1] &= ~(0x0F << ((SPI2_MISO - 8)*4)); //clear bits in high reg
     GPIOB->AFR[1] |= (0x05 << ((SPI2_MISO - 8)*4)); //AF5 for SPI
 
     //configure sck to AF
     GPIOB->MODER &= ~(0x03 << (SPI2_SCK*2)); //clear bits
     GPIOB->MODER |= (0x02 << (SPI2_SCK*2)); //10 gives AF mode
+    GPIOB->OSPEEDR |= (0x03 << (SPI2_SCK*2)); //high speed
     GPIOB->AFR[1] &= ~(0x0F << ((SPI2_SCK - 8)*4)); //clear bits in high reg
     GPIOB->AFR[1] |= (0x05 << ((SPI2_SCK - 8)*4)); //AF5 for SPI
 
@@ -137,7 +145,6 @@ void peripheral_spi2_init_interrupt(void)
     SPI2->CR2 &= ~(SPI_CR2_ERRIE); //disable error interrupt
     SPI2->CR2 &= ~(SPI_CR2_FRF); //use motorola mode
     SPI2->CR2 &= ~(SPI_CR2_NSSP); //disable NSS pulse
-    SPI2->CR2 |= SPI_CR2_SSOE; //master mode
     SPI2->CR2 &= ~(SPI_CR2_TXDMAEN); //disable Tx buffer DMA
     SPI2->CR2 &= ~(SPI_CR2_RXDMAEN); //disable Rx buffer DMA
 
@@ -180,6 +187,8 @@ void peripheral_spi2_receive_interrupt(void)
 void peripheral_spi2_multi_byte_end(void)
 {
 
+    while (SPI2->SR & SPI_SR_BSY);
+
     GPIOB->BSRR = (1 << SPI2_NSS);
     counter = 0;
     spi_busy = 0;
@@ -198,6 +207,10 @@ void peripheral_spi2_multi_byte_start(uint8_t* tx_buffer, uint8_t* rx_buffer, ui
     if (spi_busy) {
         return;
     }
+
+    while (SPI2->SR & SPI_SR_RXNE) {
+        (void)*(volatile uint8_t *)&SPI2->DR;
+    }   
 
     counter = 0;
     spi_busy = 1;
