@@ -2,19 +2,6 @@
 
 volatile uint32_t millis_counter = 0;
 
-void peripheral_clock_init(void)
-{
-
-    //enable all peripheral clocks for the used peripherals
-    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
-    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN;
-    RCC->APB1ENR1 |= RCC_APB1ENR1_I2C2EN;
-    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
-    RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
-    RCC->APB1ENR1 |= RCC_APB1ENR1_SPI2EN;
-
-}
-
 void clock_init(void)
 {
 

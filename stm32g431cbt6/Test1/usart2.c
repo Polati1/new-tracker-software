@@ -4,11 +4,8 @@ extern uint32_t SystemCoreClock;
 
 void peripheral_usart2_init(void)
 {
-    
-    //STM32 Side RX/TX pins
-    #define RX 4
-    #define TX 3
-    #define BAUD_RATE 115200
+
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
 
     //configure RX to AF
     GPIOB->MODER &= ~(0x03 << (RX*2)); //clear bits

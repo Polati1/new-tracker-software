@@ -15,11 +15,16 @@
 
 uint8_t sensor_icm40609d_read_reg(uint8_t regAddress)
 {
-
     uint8_t rx_data = 0;
 
-    uint16_t tx_data = ((0x80 | regAddress) << 8); //1 on MSB for read, then shift pad by 8 bits
-    rx_data = (uint8_t)peripheral_spi2_transfer(tx_data); //send through SPI, cast return to lower 8 bits
+    GPIOB->BSRR = (1 << (SPI2_NSS + 16)); //set NSS low
+
+    uint16_t tx_data = (0x80 | regAddress); //1 on MSB for read
+    (void)peripheral_spi2_transfer(tx_data); //send through SPI, don't care about first byte
+    rx_data = peripheral_spi2_transfer(0x00); //pad 2nd byte with 0s, return rx data 
+
+    GPIOB->BSRR = (1 << (SPI2_NSS)); //set NSS high
+
     return rx_data;
 
 }
@@ -27,11 +32,80 @@ uint8_t sensor_icm40609d_read_reg(uint8_t regAddress)
 void sensor_icm40609d_write_reg(uint8_t regAddress, uint8_t data)
 {
 
+    GPIOB->BSRR = (1 << (SPI2_NSS + 16)); //set NSS low
+
     //0 on MSB for write, no need to add 0x80
-    uint16_t tx_data = ((regAddress << 8) | data); //regAddress in upper byte, data in lower byte (MSB first)
-    (void)peripheral_spi2_transfer(tx_data);
+    (void)peripheral_spi2_transfer(regAddress); //regAddress in upper byte (sent first)
+    (void)peripheral_spi2_transfer(data); //data in lower byte (sent second)
+
+    GPIOB->BSRR = (1 << (SPI2_NSS)); //set NSS high
 
 }
+
+void sensor_icm40609d_burst_transfer(uint8_t start_reg, uint8_t *buffer, uint8_t length)
+{
+
+    if (buffer == 0 || length == 0) return;
+
+    GPIOB->BSRR = (1 << (SPI2_NSS + 16)); //set NSS low
+
+    // Send register address with read bit set.
+    // rx gets all 0s, discard
+    (void)peripheral_spi2_transfer(0x80 | start_reg);
+
+    while (length >= 1)
+    {
+        *buffer = peripheral_spi2_transfer(0x00); //send all 0s to pad, store RX bytes in buffer
+        buffer++; //increment buffer pointer
+        length--; //decrement length tracking
+    }
+
+    GPIOB->BSRR = (1 << (SPI2_NSS)); //set NSS high
+
+}
+
+
+uint8_t sensor_icm40609d_read_reg_interrupt(uint8_t regAddress)
+{
+
+    uint8_t tx_buffer[2] = {(0x80 | regAddress), 0};
+    uint8_t rx_buffer[2] = {0};
+    
+    peripheral_spi2_multi_byte_start(tx_buffer, rx_buffer, 2);
+    
+    while(!peripheral_spi2_multi_byte_get_finished());
+    
+    return rx_buffer[1];
+
+}
+
+void sensor_icm40609d_write_reg_interrupt(uint8_t regAddress, uint8_t data)
+{
+
+    uint8_t tx_buffer[2] = {(0x80 | regAddress), data};
+    uint8_t rx_buffer[2] = {0};
+
+    peripheral_spi2_multi_byte_start(tx_buffer, rx_buffer, 2);
+
+    while(!peripheral_spi2_multi_byte_get_finished());
+
+    return;
+
+}
+
+void sensor_icm40609d_burst_transfer_interrupt(uint8_t start_reg, uint8_t* rx_buffer, uint8_t length) 
+{
+
+    uint8_t tx_buffer[length] = {0};
+    tx_buffer[0] = (0x80 | start_reg);
+    for (uint8_t i = 1; i < length; i++) {
+        tx_buffer[i] = 0;
+    }
+
+    peripheral_spi2_multi_byte_start(tx_buffer, rx_buffer, length);
+
+}
+
 
 void sensor_icm40609d_startup(void)
 {
